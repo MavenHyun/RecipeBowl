@@ -1,0 +1,2 @@
+#!/bin/bash
+python -W ignore main.py --session_name 20210116-122234_ADX3 --project_name IJCAI_2021 --saved_path ./saved/ --batch_size 512 --dataset full --hidden_nodes 128 --learning_rate 0.001 --weight_decay 0.0 --num_epochs 60 --recipe_coef 1.0 --ingred_encoder deepset --ingred_embed flavorgraph --ingred_decoder prob --ingred_loss nll_euc --recipe_loss cos --temperature_coef 2.0 --test_mode --add_tags --fine_tuning
