@@ -30,8 +30,9 @@ class MetricHelper:
 
 		self.widx2fidx = {wdx: fdx for fdx, wdx in enumerate(self.food_indices)}
 
-		self.food_vectors = ingtable[self.food_indices]
+		self.food_vectors = ingtable[self.food_indices].astype(np.float32)
 		self.idx2food = pickle.load(open(f'{ROOT_PATH}iid2ingr_full.pkl', 'rb'))
+		self.food2idx = {v: int(k) for k ,v in self.idx2food.items()}
 		self.food_names = [self.idx2food[i] for i in self.food_indices]
 
 		self.recipe_vectors = pickle.load(open(f'{ROOT_PATH}rid2vec.pkl', 'rb')) # 600 dim, recipe vectors are fixed
@@ -125,9 +126,7 @@ class MetricHelper:
 			return np.asarray((' & ').join([self.idx2food[i] for i in x.tolist() if i > 1]),dtype=object)
 
 		temp_numpy = self.numpy_dict[f'{phase}/foods'].reshape(-1,1)
-		# temp_numpy = np.hstack([self.numpy_dict[f'{phase}/foods'].reshape(-1,1), self.numpy_dict[f'{phase}/foods_related']])
 		missing_foods = np.vectorize(convert_indices)(temp_numpy)
-		# missing_col = np.apply_along_axis(get_incomplete_names, 1, temp_numpy).reshape(-1,1)
 		missing_col = np.apply_along_axis(get_incomplete_names, 1, temp_numpy).reshape(-1,1)
 		incomplete_col = np.apply_along_axis(get_incomplete_names, 1, self.numpy_dict[f'{phase}/recipes']).reshape(-1,1)
 		recipe_col = np.array(self.numpy_dict[f'{phase}/recipeids']).astype(str).reshape(-1,1)

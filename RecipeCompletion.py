@@ -80,6 +80,68 @@ class RecipeCompletion(nn.Module):
 
 		return batch
 
+	def predict(self, ingredients, tags=None):
+		self.helper.update_foodvectors(self)
+		tags_dict = pickle.load(open('data/tags.pkl', 'rb'))
+
+		print("Checking Ingredients...")
+		ing_vector = list()
+		for food in ingredients:
+			try: ing_vector.append(self.helper.food2idx[food])
+			except:
+				print("The following ingredient is invalid!", food)
+		ingrs = torch.cuda.LongTensor(ing_vector).view(1,-1)
+		num_ingrs = len(ingredients)
+		target = torch.cuda.LongTensor([1]).view(1,-1)
+
+		print("Checking Recipe-related Tags...")
+		tag_vector = np.zeros(630)
+		for tag in tags:
+			try: tag_vector[tags_dict[tag]] = 1.0
+			except: 
+				print("The following recipe tag is invalid!", tag)
+
+
+		tags = torch.cuda.FloatTensor(np.zeros(630)).view(1,-1)
+		iid = None
+		rid = None
+		rvec = torch.cuda.FloatTensor(np.zeros(600)).view(1,-1)
+		neis = torch.cuda.LongTensor(np.ones(10)).view(1,-1)
+		# batch => [ingrs, num_ingrs, target, tags, iid, rid, rvec, neis]
+		batch = self.forward([ingrs, num_ingrs, target, tags, iid, rid, rvec, neis])
+		
+		recommended_ingred = batch['anchor_vectors'].detach().cpu().numpy().astype(np.float32)
+		recommended_recipe = batch['recipe_vectors1'].detach().cpu().numpy().astype(np.float32)
+
+		X = recommended_ingred
+		Y = self.helper.food_vectors.copy()
+		R = recommended_recipe
+		S = self.helper.recipe_vectors.copy()
+		idx = faiss.index_factory(self.helper.food_vectors.shape[1],"Flat",faiss.METRIC_INNER_PRODUCT)
+		faiss.normalize_L2(X)
+		faiss.normalize_L2(Y)
+		idx.add(Y)
+		score_matrix, score_ranked = idx.search(X, 100)
+		idx = faiss.index_factory(600, "Flat", faiss.METRIC_INNER_PRODUCT)
+		faiss.normalize_L2(R)
+		faiss.normalize_L2(S)
+		idx.add(S)
+		recipe_matrix, recipe_ranked = idx.search(R, 100)
+
+		def get_predicted_names(x):
+			x = self.helper.food_indices[x]
+			return self.helper.idx2food[x]
+
+		def get_predicted_names2(x):
+			return self.helper.idx2recipe[x]
+
+		predicted_col = np.vectorize(get_predicted_names)(score_ranked)[0,:5].tolist()
+		predicted_Rcol = np.vectorize(get_predicted_names2)(recipe_ranked)[0,:5].tolist()
+		rid2title = pickle.load(open('data/rid2title.pkl', 'rb'))
+		predicted_Rcol = [rid2title[rid] for rid in predicted_Rcol]
+
+		return predicted_col, predicted_Rcol
+
 	def fit(self, train, valid=None):
 		# batch => [instrs, num_instrs, ingrs, num_ingrs, tags, missing, rec_id]
 		train_iter, valid_iter, early_stopping = 0, 0, False

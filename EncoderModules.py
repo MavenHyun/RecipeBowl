@@ -189,15 +189,22 @@ class DeepSet(BaseModule):
 
 	def forward(self, batch):
 		# batch => [ingrs, num_ingrs, target, tags, iid, rid, rvec, neis]
-		B = batch[0].size(0)
+		# print(batch)
+		try:
+			B = batch[0].size(0) 
+		except:
+			B = 1
 		x = self.u_ingbedding(batch[0])
 		n = self.v_ingbedding(batch[2].transpose(0,1).repeat(B, 1))
 		p = self.v_ingbedding(batch[2]).squeeze(1)
 		r = self.v_ingbedding(batch[7])
 
 		x = self.encoder(x)
-		sorted_len, sorted_idx = batch[1].sort(0, descending=True)
-		batch_max_len = sorted_len.cpu().numpy()[0]
+		try:
+			sorted_len, sorted_idx = batch[1].sort(0)
+			batch_max_len = sorted_len.cpu().numpy()[0]
+		except:
+			batch_max_len = batch[1]
 		x = x[:, :batch_max_len, :].sum(1)
 		x = self.decoder(x)
 
